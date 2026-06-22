@@ -122,12 +122,25 @@
   }
 
   // === Detection ===
+  function isOverlayLike(el) {
+    // elemen yang muncul di atas konten lain (popup, toast, notifikasi, dll)
+    if (!el || !el.tagName) return false;
+    const style = window.getComputedStyle(el);
+    const pos = style.position;
+    const z = parseInt(style.zIndex, 10);
+    // fixed/absolute + z-index tinggi
+    if ((pos === 'fixed' || pos === 'absolute') && !isNaN(z) && z >= 100) return true;
+    // atau match selector modal
+    if (isModalElement(el)) return true;
+    return false;
+  }
+
   function checkElement(el) {
     if (!enabled || !el || !el.tagName) return;
     if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'LINK') return;
     if (!isOnScreen(el)) return;
 
-    // HARUS ada modal + (keyword credential ATAU input password)
+    // 1. modal standar + credential
     if (isModalElement(el)) {
       if (hasPasswordField(el)) {
         triggerScreenshot('modal+password-field');
@@ -139,7 +152,13 @@
       }
     }
 
-    // check children dari elemen baru
+    // 2. overlay apapun (popup, toast, div muncul sebentar) + ada tulisan username/password
+    if (isOverlayLike(el) && containsKeywords(el)) {
+      triggerScreenshot('overlay+credential-text');
+      return;
+    }
+
+    // 3. check children dari elemen baru
     if (el.querySelectorAll) {
       const children = el.querySelectorAll(CONFIG.MODAL_SELECTORS.join(','));
       for (const child of children) {
@@ -150,6 +169,15 @@
         }
         if (containsKeywords(child)) {
           triggerScreenshot('child-modal+credential-keywords');
+          return;
+        }
+      }
+
+      // 4. fallback: cari elemen overlay kecil yang ada tulisan username/password
+      if (containsKeywords(el) && el.offsetWidth > 100 && el.offsetHeight > 50) {
+        const style = window.getComputedStyle(el);
+        if (style.position === 'fixed' || style.position === 'absolute') {
+          triggerScreenshot('floating-element+credential-text');
           return;
         }
       }
