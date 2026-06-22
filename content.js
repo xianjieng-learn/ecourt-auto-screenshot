@@ -70,14 +70,27 @@
   }
 
   function looksLikeCredentialText(el) {
-    const text = normalizeText(el.innerText || el.textContent || '');
+    const rawText = el.innerText || el.textContent || '';
+    const text = normalizeText(rawText);
     if (!text) return false;
 
-    const hasUsername = /\b(user\s*name|username|user\s*id|userid|id\s*user)\b/.test(text);
-    const hasPassword = /\b(password|kata\s*sandi|sandi)\b/.test(text);
+    // khusus popup eCourt model "Pesan" + "Data user"
+    const hasPesanTitle = /(^|\b)pesan(\b|$)/i.test(rawText);
+    const hasDataUser = /data\s*user/i.test(rawText);
+    const hasUsernameLine = /username\s*:/i.test(rawText);
+    const hasPasswordLine = /password\s*:/i.test(rawText);
 
-    if (!(hasUsername && hasPassword)) return false;
-    if (text.length > 300) return false;
+    // wajib struktur khas popup yang Xian kirim
+    if (!(hasDataUser && hasUsernameLine && hasPasswordLine)) return false;
+
+    // "Pesan" biasanya ada di header modal. kalau gak ada, tetap lolos asal format data user sangat spesifik.
+    const specificCredentialShape = hasDataUser && hasUsernameLine && hasPasswordLine;
+    const ecourtMessageShape = hasPesanTitle && specificCredentialShape;
+
+    if (!(specificCredentialShape || ecourtMessageShape)) return false;
+
+    // batas panjang supaya container besar/full page gak ikut match
+    if (text.length > 500) return false;
 
     return true;
   }
@@ -89,7 +102,7 @@
     const vh = window.innerHeight || document.documentElement.clientHeight;
 
     if (rect.width < 120 || rect.height < 40) return false;
-    if (rect.width > vw * 0.95 || rect.height > vh * 0.80) return false;
+    if (rect.width > vw * 0.75 || rect.height > vh * 0.65) return false;
 
     return true;
   }
