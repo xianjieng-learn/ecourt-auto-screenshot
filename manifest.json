@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "eCourt Auto Screenshot",
+  "version": "1.0",
+  "description": "Auto screenshot popup di eCourt (username/password)",
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://ecourt.mahkamahagung.go.id/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://ecourt.mahkamahagung.go.id/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "eCourt Auto Screenshot"
+  },
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
