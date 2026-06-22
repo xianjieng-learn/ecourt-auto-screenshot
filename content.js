@@ -78,13 +78,14 @@
     const hasPesanTitle = /(^|\b)pesan(\b|$)/i.test(rawText);
     const hasDataUser = /data\s*user/i.test(rawText);
     const hasUsernameLine = /username\s*:/i.test(rawText);
+    const hasUserLine = /user\s*:/i.test(rawText);
     const hasPasswordLine = /password\s*:/i.test(rawText);
 
     // wajib struktur khas popup yang Xian kirim
-    if (!(hasDataUser && hasUsernameLine && hasPasswordLine)) return false;
+    if (!(hasDataUser && (hasUsernameLine || hasUserLine) && hasPasswordLine)) return false;
 
     // "Pesan" biasanya ada di header modal. kalau gak ada, tetap lolos asal format data user sangat spesifik.
-    const specificCredentialShape = hasDataUser && hasUsernameLine && hasPasswordLine;
+    const specificCredentialShape = hasDataUser && (hasUsernameLine || hasUserLine) && hasPasswordLine;
     const ecourtMessageShape = hasPesanTitle && specificCredentialShape;
 
     if (!(specificCredentialShape || ecourtMessageShape)) return false;
