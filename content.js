@@ -108,6 +108,30 @@
     return true;
   }
 
+  function isLoginFormLike(el) {
+    if (!el || !el.querySelectorAll) return false;
+
+    const rawText = el.innerText || el.textContent || '';
+    const text = normalizeText(rawText);
+
+    const hasPasswordInput = !!el.querySelector('input[type="password"]');
+    const hasEmailInput = !!el.querySelector('input[type="email"], input[placeholder*="Email" i], input[name*="email" i], input[id*="email" i]');
+    const hasCaptcha = /captcha/i.test(rawText) || !!el.querySelector('img[src*="captcha" i], input[placeholder*="captcha" i]');
+    const hasLoginButton = /\blogin\b/i.test(rawText) || !!el.querySelector('button, input[type="submit"]');
+
+    if (hasPasswordInput && hasEmailInput && (hasCaptcha || hasLoginButton)) return true;
+
+    if (
+      text.includes('login pendaftaran perkara online') &&
+      text.includes('kirim ulang aktivasi') &&
+      text.includes('ganti password')
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
   // cek apakah ada input type password di dalam element
   function hasPasswordField(el) {
     if (!el || !el.querySelectorAll) return false;
@@ -183,6 +207,7 @@
   function isCredentialCandidate(el) {
     if (!el || !isOnScreen(el)) return false;
 
+    if (isLoginFormLike(el)) return false;
     if (hasPasswordField(el)) return true;
     if (!looksLikeCredentialText(el)) return false;
     if (!isReasonablePopupSize(el)) return false;
