@@ -1,3 +1,5 @@
 .DS_Store
 *.crx
 *.pem
+__pycache__/
+*.pyc
