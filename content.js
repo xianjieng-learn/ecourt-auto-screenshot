@@ -63,6 +63,22 @@
     return CONFIG.KEYWORDS.some(kw => text.includes(kw));
   }
 
+  // cek apakah ada input type password di dalam element
+  function hasPasswordField(el) {
+    if (!el || !el.querySelectorAll) return false;
+    // input type password
+    if (el.querySelectorAll('input[type="password"]').length > 0) return true;
+    // input dengan name/id yang mengandung kata password/sandi
+    const inputs = el.querySelectorAll('input[type="text"], input:not([type])');
+    for (const inp of inputs) {
+      const name = (inp.name || inp.id || inp.placeholder || '').toLowerCase();
+      if (name.includes('password') || name.includes('sandi') || name.includes('user')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function isModalElement(el) {
     if (!el || !el.tagName) return false;
     const tag = el.tagName.toLowerCase();
@@ -111,22 +127,29 @@
     if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'LINK') return;
     if (!isOnScreen(el)) return;
 
-    if (isModalElement(el) && containsKeywords(el)) {
-      triggerScreenshot('modal+keywords');
-      return;
-    }
-
+    // HARUS ada modal + (keyword credential ATAU input password)
     if (isModalElement(el)) {
-      triggerScreenshot('modal-detected');
-      return;
+      if (hasPasswordField(el)) {
+        triggerScreenshot('modal+password-field');
+        return;
+      }
+      if (containsKeywords(el)) {
+        triggerScreenshot('modal+credential-keywords');
+        return;
+      }
     }
 
-    // check children
+    // check children dari elemen baru
     if (el.querySelectorAll) {
       const children = el.querySelectorAll(CONFIG.MODAL_SELECTORS.join(','));
       for (const child of children) {
-        if (isOnScreen(child) && containsKeywords(child)) {
-          triggerScreenshot('child-modal+keywords');
+        if (!isOnScreen(child)) continue;
+        if (hasPasswordField(child)) {
+          triggerScreenshot('child-modal+password-field');
+          return;
+        }
+        if (containsKeywords(child)) {
+          triggerScreenshot('child-modal+credential-keywords');
           return;
         }
       }
