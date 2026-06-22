@@ -11,6 +11,9 @@ const btnClearLogs = document.getElementById('btnClearLogs');
 const recordCount = document.getElementById('recordCount');
 const lastUser = document.getElementById('lastUser');
 const lastShot = document.getElementById('lastShot');
+const nativeStatus = document.getElementById('nativeStatus');
+const nativeUpdated = document.getElementById('nativeUpdated');
+const nativePath = document.getElementById('nativePath');
 
 function updateUI(enabled) {
   statusDot.className = enabled ? 'dot on' : 'dot off';
@@ -37,10 +40,24 @@ async function getLogs() {
   return Array.isArray(data.credentialLogs) ? data.credentialLogs : [];
 }
 
+function formatDate(iso) {
+  if (!iso) return '-';
+  try {
+    return new Date(iso).toLocaleString('id-ID');
+  } catch {
+    return iso;
+  }
+}
+
 async function refreshStats() {
-  const data = await chrome.storage.local.get({ autoEnabled: true, credentialLogs: [] });
+  const data = await chrome.storage.local.get({
+    autoEnabled: true,
+    credentialLogs: [],
+    nativeBackupStatus: null
+  });
   const logs = Array.isArray(data.credentialLogs) ? data.credentialLogs : [];
   const latest = logs[logs.length - 1];
+  const backup = data.nativeBackupStatus;
 
   toggleAuto.checked = data.autoEnabled;
   updateUI(data.autoEnabled);
@@ -48,6 +65,16 @@ async function refreshStats() {
   recordCount.textContent = String(logs.length);
   lastUser.textContent = latest?.username || '-';
   lastShot.textContent = latest?.screenshotFile || '-';
+
+  if (backup?.ok) {
+    nativeStatus.textContent = `Aktif (${backup.count ?? 0} record)`;
+    nativeUpdated.textContent = formatDate(backup.updatedAt);
+    nativePath.textContent = backup.path || 'Path tidak tersedia';
+  } else {
+    nativeStatus.textContent = 'Belum aktif / error';
+    nativeUpdated.textContent = formatDate(backup?.updatedAt);
+    nativePath.textContent = backup?.error || 'Jalankan installer native host dulu.';
+  }
 }
 
 async function downloadBlob(blob, filename) {
@@ -60,15 +87,6 @@ async function downloadBlob(blob, filename) {
     });
   } finally {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
-  }
-}
-
-function formatDate(iso) {
-  if (!iso) return '-';
-  try {
-    return new Date(iso).toLocaleString('id-ID');
-  } catch {
-    return iso;
   }
 }
 

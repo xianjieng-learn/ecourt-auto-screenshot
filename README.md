@@ -8,7 +8,11 @@ Chrome extension yang otomatis screenshot popup (username/password) di eCourt. P
 2. Buka Chrome → `chrome://extensions/`
 3. Aktifkan **Developer mode** (toggle kanan atas)
 4. Klik **Load unpacked** → pilih folder ini
-5. Selesai! Extension aktif otomatis di `ecourt.mahkamahagung.go.id`
+5. Jalankan installer native host untuk backup JSON permanen:
+   ```bash
+   python3 native-host/install_native_host.py
+   ```
+6. Selesai! Extension aktif otomatis di `ecourt.mahkamahagung.go.id`
 
 ## Cara Pakai
 
@@ -17,6 +21,7 @@ Buka eCourt seperti biasa. Extension memantau popup credential eCourt model `Pes
 - auto-screenshot ke folder Downloads
 - ambil teks **user** dan **password** dari popup
 - simpan record JSON ke `chrome.storage.local`
+- sinkronkan juga ke file JSON permanen via Native Messaging helper
 
 ### Manual
 - Klik icon extension di toolbar → tombol **📸 Screenshot Sekarang**
@@ -30,6 +35,24 @@ Kalau popup udah muncul sebelum extension aktif, klik **🔍 Scan Ulang Halaman*
 - **🗂️ Export JSON** → download backup `.json`
 - **🧹 Hapus Data Tersimpan** → kosongkan log yang ada di `chrome.storage.local`
 
+### JSON Permanen (opsi C)
+Installer native host akan membuat file tetap di:
+
+```text
+~/Documents/eCourt Auto Screenshot/credentials.json
+```
+
+Setiap popup credential yang tertangkap akan:
+- tetap screenshot ke Downloads
+- masuk ke storage internal extension
+- otomatis di-append ke file JSON permanen di path di atas
+
+Kalau mau ganti path file JSON, jalankan installer dengan env:
+
+```bash
+ECOURT_JSON_PATH="$HOME/Desktop/ecourt-credentials.json" python3 native-host/install_native_host.py
+```
+
 ## Cara Kerja
 
 - **MutationObserver** — memantau perubahan DOM secara real-time, detect elemen baru yang mirip modal/popup
@@ -37,7 +60,8 @@ Kalau popup udah muncul sebelum extension aktif, klik **🔍 Scan Ulang Halaman*
 - **Z-index + position** — elemen dengan z-index tinggi + position fixed/absolute otomatis terdeteksi sebagai modal
 - **Cooldown 3 detik** — cegah spam screenshot untuk popup yang sama
 - **Fallback html2canvas** — kalau `captureVisibleTab` gagal, tetap bisa capture via canvas rendering
-- **JSON log storage** — data disimpan di `chrome.storage.local`, bukan di folder root extension (folder extension read-only saat runtime)
+- **JSON log storage** — data disimpan di `chrome.storage.local` untuk runtime extension
+- **Native Messaging backup** — helper Python lokal meng-update 1 file JSON tetap di luar folder extension
 
 ## File Structure
 
@@ -48,6 +72,9 @@ Kalau popup udah muncul sebelum extension aktif, klik **🔍 Scan Ulang Halaman*
 ├── popup.html           # Extension popup UI + export controls
 ├── popup.js             # Popup logic (toggle, manual capture, export Word/JSON)
 ├── html2canvas.min.js   # Fallback screenshot library
+├── native-host/
+│   ├── ecourt_native_host.py   # Helper Python untuk update file JSON permanen
+│   └── install_native_host.py  # Installer manifest Native Messaging di macOS
 ├── icon48.png           # Icon 48x48
 └── icon128.png          # Icon 128x128
 ```
@@ -60,6 +87,7 @@ Kalau popup udah muncul sebelum extension aktif, klik **🔍 Scan Ulang Halaman*
 | `downloads` | Auto-download screenshot |
 | `scripting` | Inject html2canvas sebagai fallback |
 | `storage` | Simpan JSON log user/password dan state extension |
+| `nativeMessaging` | Kirim record ke helper lokal supaya file JSON permanen ikut ter-update |
 | `host_permissions` | Hanya aktif di `ecourt.mahkamahagung.go.id` |
 
 ## Troubleshooting

@@ -1,5 +1,7 @@
 // === eCourt Auto Screenshot - Background Service Worker ===
 
+const NATIVE_HOST_NAME = 'com.xianjieng.ecourtautoscreenshot';
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'capture') {
     captureAndDownload(sender?.tab, message.filename, message.reason, message.credentialData)
@@ -51,24 +53,67 @@ function sanitizeRecordText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
+function makeRecord(record) {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    capturedAt: new Date().toISOString(),
+    username: sanitizeRecordText(record?.username),
+    password: sanitizeRecordText(record?.password),
+    screenshotFile: sanitizeRecordText(record?.screenshotFile),
+    reason: sanitizeRecordText(record?.reason),
+    sourceText: sanitizeRecordText(record?.sourceText)
+  };
+}
+
+async function syncRecordToNativeHost(record) {
+  try {
+    const response = await chrome.runtime.sendNativeMessage(NATIVE_HOST_NAME, {
+      action: 'append_record',
+      record
+    });
+
+    const nativeStatus = {
+      enabled: true,
+      ok: !!response?.ok,
+      path: response?.path || '',
+      count: response?.count ?? null,
+      updatedAt: new Date().toISOString(),
+      error: response?.ok ? '' : (response?.error || 'Unknown native host error')
+    };
+
+    await chrome.storage.local.set({ nativeBackupStatus: nativeStatus });
+
+    if (!response?.ok) {
+      console.warn('[AutoScreenshot] Native host returned error:', response);
+    } else {
+      console.log(`[AutoScreenshot] 💾 Native JSON updated: ${response.path}`);
+    }
+  } catch (err) {
+    const nativeStatus = {
+      enabled: false,
+      ok: false,
+      path: '',
+      count: null,
+      updatedAt: new Date().toISOString(),
+      error: String(err)
+    };
+    await chrome.storage.local.set({ nativeBackupStatus: nativeStatus });
+    console.warn('[AutoScreenshot] Native host unavailable:', err);
+  }
+}
+
 async function saveCredentialRecord(record) {
   if (!record?.username && !record?.password) return;
 
   const current = await chrome.storage.local.get({ credentialLogs: [] });
   const logs = Array.isArray(current.credentialLogs) ? current.credentialLogs : [];
+  const normalized = makeRecord(record);
 
-  logs.push({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    capturedAt: new Date().toISOString(),
-    username: sanitizeRecordText(record.username),
-    password: sanitizeRecordText(record.password),
-    screenshotFile: sanitizeRecordText(record.screenshotFile),
-    reason: sanitizeRecordText(record.reason),
-    sourceText: sanitizeRecordText(record.sourceText)
-  });
-
+  logs.push(normalized);
   await chrome.storage.local.set({ credentialLogs: logs });
   console.log(`[AutoScreenshot] 📝 Saved credential record (${logs.length} total)`);
+
+  await syncRecordToNativeHost(normalized);
 }
 
 async function captureAndDownload(tab, filename, reason, credentialData = null) {
@@ -144,7 +189,31 @@ async function captureAndDownload(tab, filename, reason, credentialData = null) 
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async () => {
   console.log('[AutoScreenshot] Extension installed');
   chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' }).catch(() => {});
+  try {
+    const status = await chrome.runtime.sendNativeMessage(NATIVE_HOST_NAME, { action: 'get_status' });
+    await chrome.storage.local.set({
+      nativeBackupStatus: {
+        enabled: !!status?.ok,
+        ok: !!status?.ok,
+        path: status?.path || '',
+        count: status?.count ?? null,
+        updatedAt: new Date().toISOString(),
+        error: status?.ok ? '' : (status?.error || '')
+      }
+    });
+  } catch (err) {
+    await chrome.storage.local.set({
+      nativeBackupStatus: {
+        enabled: false,
+        ok: false,
+        path: '',
+        count: null,
+        updatedAt: new Date().toISOString(),
+        error: String(err)
+      }
+    });
+  }
 });

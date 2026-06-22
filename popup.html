@@ -5,7 +5,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      width: 300px;
+      width: 320px;
       font-family: 'Segoe UI', Tahoma, sans-serif;
       background: #1a1a2e;
       color: #e0e0e0;
@@ -89,6 +89,17 @@
     }
     .meta-label { color: #9aa0b4; }
     .meta-value { color: #fff; text-align: right; word-break: break-word; }
+    .path-box {
+      margin-top: 6px;
+      padding: 6px;
+      border-radius: 6px;
+      background: #181b2b;
+      color: #cfd5ec;
+      font-size: 11px;
+      line-height: 1.4;
+      word-break: break-all;
+      border: 1px solid #2c3150;
+    }
     .btn {
       display: block;
       width: 100%;
@@ -176,7 +187,20 @@
       <span class="meta-label">Screenshot terakhir</span>
       <span class="meta-value" id="lastShot">-</span>
     </div>
-    <div class="tiny">JSON disimpan aman di <code>chrome.storage.local</code>, bukan di folder root extension.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Backup JSON Permanen</h2>
+    <div class="meta-row">
+      <span class="meta-label">Status</span>
+      <span class="meta-value" id="nativeStatus">Belum aktif</span>
+    </div>
+    <div class="meta-row">
+      <span class="meta-label">Last sync</span>
+      <span class="meta-value" id="nativeUpdated">-</span>
+    </div>
+    <div class="path-box" id="nativePath">Belum terhubung ke helper lokal.</div>
+    <div class="tiny">Mode permanen pakai helper lokal + Native Messaging, jadi JSON bisa terus diupdate di file tetap.</div>
   </div>
 
   <button class="btn btn-primary" id="btnManual">📸 Screenshot Sekarang</button>
