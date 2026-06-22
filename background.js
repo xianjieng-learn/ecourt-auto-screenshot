@@ -1,6 +1,7 @@
 // === eCourt Auto Screenshot - Background Service Worker ===
 
 const NATIVE_HOST_NAME = 'com.xianjieng.ecourtautoscreenshot';
+const SCREENSHOT_SUBFOLDER = 'eCourt Auto Screenshot';
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'capture') {
@@ -28,9 +29,11 @@ async function downloadDataUrl(dataUrl, filename) {
     throw new Error('Invalid screenshot data URL');
   }
 
+  const downloadPath = `${SCREENSHOT_SUBFOLDER}/${filename}.png`;
+
   return await chrome.downloads.download({
     url: dataUrl,
-    filename: `${filename}.png`,
+    filename: downloadPath,
     saveAs: false
   });
 }
@@ -125,7 +128,7 @@ async function captureAndDownload(tab, filename, reason, credentialData = null) 
     });
 
     const downloadId = await downloadDataUrl(dataUrl, filename);
-    const screenshotFile = `${filename}.png`;
+    const screenshotFile = `${SCREENSHOT_SUBFOLDER}/${filename}.png`;
 
     console.log(`[AutoScreenshot] ✅ Downloaded: ${screenshotFile} (id: ${downloadId}, reason: ${reason})`);
 
@@ -171,7 +174,7 @@ async function captureAndDownload(tab, filename, reason, credentialData = null) 
     }
 
     const downloadId = await downloadDataUrl(dataUrl, filename);
-    const screenshotFile = `${filename}.png`;
+    const screenshotFile = `${SCREENSHOT_SUBFOLDER}/${filename}.png`;
 
     console.log(`[AutoScreenshot] ✅ Fallback downloaded: ${screenshotFile} (id: ${downloadId}, reason: ${reason})`);
 

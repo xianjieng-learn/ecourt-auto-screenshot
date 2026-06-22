@@ -18,7 +18,7 @@ Chrome extension yang otomatis screenshot popup (username/password) di eCourt. P
 
 ### Otomatis
 Buka eCourt seperti biasa. Extension memantau popup credential eCourt model `Pesan / Data user / User|username / Password`, lalu:
-- auto-screenshot ke folder Downloads
+- auto-screenshot ke subfolder Downloads: `eCourt Auto Screenshot/`
 - ambil teks **user** dan **password** dari popup
 - simpan record JSON ke `chrome.storage.local`
 - sinkronkan juga ke file JSON permanen via Native Messaging helper
