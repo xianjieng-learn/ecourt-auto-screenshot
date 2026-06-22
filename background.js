@@ -24,12 +24,24 @@ async function resolveTargetTab(tab) {
   throw new Error('No active tab found for capture');
 }
 
+function getDateFolder() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function buildScreenshotPath(filename) {
+  return `${SCREENSHOT_SUBFOLDER}/${getDateFolder()}/${filename}.png`;
+}
+
 async function downloadDataUrl(dataUrl, filename) {
   if (!dataUrl || typeof dataUrl !== 'string') {
     throw new Error('Invalid screenshot data URL');
   }
 
-  const downloadPath = `${SCREENSHOT_SUBFOLDER}/${filename}.png`;
+  const downloadPath = buildScreenshotPath(filename);
 
   return await chrome.downloads.download({
     url: dataUrl,
@@ -128,7 +140,7 @@ async function captureAndDownload(tab, filename, reason, credentialData = null) 
     });
 
     const downloadId = await downloadDataUrl(dataUrl, filename);
-    const screenshotFile = `${SCREENSHOT_SUBFOLDER}/${filename}.png`;
+    const screenshotFile = buildScreenshotPath(filename);
 
     console.log(`[AutoScreenshot] ✅ Downloaded: ${screenshotFile} (id: ${downloadId}, reason: ${reason})`);
 
@@ -174,7 +186,7 @@ async function captureAndDownload(tab, filename, reason, credentialData = null) 
     }
 
     const downloadId = await downloadDataUrl(dataUrl, filename);
-    const screenshotFile = `${SCREENSHOT_SUBFOLDER}/${filename}.png`;
+    const screenshotFile = buildScreenshotPath(filename);
 
     console.log(`[AutoScreenshot] ✅ Fallback downloaded: ${screenshotFile} (id: ${downloadId}, reason: ${reason})`);
 
