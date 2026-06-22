@@ -9,8 +9,13 @@ Chrome extension yang otomatis screenshot popup (username/password) di eCourt. P
 3. Aktifkan **Developer mode** (toggle kanan atas)
 4. Klik **Load unpacked** → pilih folder ini
 5. Jalankan installer native host untuk backup JSON permanen:
+   - macOS:
    ```bash
    python3 native-host/install_native_host.py
+   ```
+   - Windows (paling gampang): double-click file ini
+   ```text
+   native-host\\install_native_host_windows.bat
    ```
 6. Selesai! Extension aktif otomatis di `ecourt.mahkamahagung.go.id`
 
@@ -53,6 +58,13 @@ Kalau mau ganti path file JSON, jalankan installer dengan env:
 ECOURT_JSON_PATH="$HOME/Desktop/ecourt-credentials.json" python3 native-host/install_native_host.py
 ```
 
+Windows PowerShell:
+
+```powershell
+$env:ECOURT_JSON_PATH = "$HOME\Desktop\ecourt-credentials.json"
+py -3 native-host\install_native_host.py
+```
+
 ## Cara Kerja
 
 - **MutationObserver** — memantau perubahan DOM secara real-time, detect elemen baru yang mirip modal/popup
@@ -73,8 +85,9 @@ ECOURT_JSON_PATH="$HOME/Desktop/ecourt-credentials.json" python3 native-host/ins
 ├── popup.js             # Popup logic (toggle, manual capture, export Word/JSON)
 ├── html2canvas.min.js   # Fallback screenshot library
 ├── native-host/
-│   ├── ecourt_native_host.py   # Helper Python untuk update file JSON permanen
-│   └── install_native_host.py  # Installer manifest Native Messaging di macOS
+│   ├── ecourt_native_host.py            # Helper Python untuk update file JSON permanen
+│   ├── install_native_host.py           # Installer Native Messaging (macOS/Windows)
+│   └── install_native_host_windows.bat  # One-click installer untuk Windows
 ├── icon48.png           # Icon 48x48
 └── icon128.png          # Icon 128x128
 ```
