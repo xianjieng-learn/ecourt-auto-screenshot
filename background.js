@@ -2,13 +2,13 @@
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'capture') {
-    captureAndDownload(sender?.tab, message.filename, message.reason)
+    captureAndDownload(sender?.tab, message.filename, message.reason, message.credentialData)
       .then(() => sendResponse({ ok: true }))
       .catch((err) => {
         console.error('[AutoScreenshot] ❌ Unhandled capture error:', err);
         sendResponse({ ok: false, error: String(err) });
       });
-    return true; // keep message channel open for async response
+    return true;
   }
 });
 
@@ -47,7 +47,31 @@ async function flashBadge(tabId, text = 'OK') {
   }
 }
 
-async function captureAndDownload(tab, filename, reason) {
+function sanitizeRecordText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+async function saveCredentialRecord(record) {
+  if (!record?.username && !record?.password) return;
+
+  const current = await chrome.storage.local.get({ credentialLogs: [] });
+  const logs = Array.isArray(current.credentialLogs) ? current.credentialLogs : [];
+
+  logs.push({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    capturedAt: new Date().toISOString(),
+    username: sanitizeRecordText(record.username),
+    password: sanitizeRecordText(record.password),
+    screenshotFile: sanitizeRecordText(record.screenshotFile),
+    reason: sanitizeRecordText(record.reason),
+    sourceText: sanitizeRecordText(record.sourceText)
+  });
+
+  await chrome.storage.local.set({ credentialLogs: logs });
+  console.log(`[AutoScreenshot] 📝 Saved credential record (${logs.length} total)`);
+}
+
+async function captureAndDownload(tab, filename, reason, credentialData = null) {
   const targetTab = await resolveTargetTab(tab);
 
   try {
@@ -56,7 +80,16 @@ async function captureAndDownload(tab, filename, reason) {
     });
 
     const downloadId = await downloadDataUrl(dataUrl, filename);
-    console.log(`[AutoScreenshot] ✅ Downloaded: ${filename}.png (id: ${downloadId}, reason: ${reason})`);
+    const screenshotFile = `${filename}.png`;
+
+    console.log(`[AutoScreenshot] ✅ Downloaded: ${screenshotFile} (id: ${downloadId}, reason: ${reason})`);
+
+    await saveCredentialRecord({
+      ...(credentialData || {}),
+      screenshotFile,
+      reason
+    });
+
     await flashBadge(targetTab.id);
     return;
 
@@ -93,7 +126,16 @@ async function captureAndDownload(tab, filename, reason) {
     }
 
     const downloadId = await downloadDataUrl(dataUrl, filename);
-    console.log(`[AutoScreenshot] ✅ Fallback downloaded: ${filename}.png (id: ${downloadId}, reason: ${reason})`);
+    const screenshotFile = `${filename}.png`;
+
+    console.log(`[AutoScreenshot] ✅ Fallback downloaded: ${screenshotFile} (id: ${downloadId}, reason: ${reason})`);
+
+    await saveCredentialRecord({
+      ...(credentialData || {}),
+      screenshotFile,
+      reason
+    });
+
     await flashBadge(targetTab.id, 'OK');
 
   } catch (fallbackErr) {

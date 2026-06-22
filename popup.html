@@ -5,7 +5,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      width: 280px;
+      width: 300px;
       font-family: 'Segoe UI', Tahoma, sans-serif;
       background: #1a1a2e;
       color: #e0e0e0;
@@ -66,6 +66,29 @@
     }
     input:checked + .slider { background: #4CAF50; }
     input:checked + .slider::before { transform: translateX(20px); }
+    .panel {
+      background: #22243a;
+      border: 1px solid #31344f;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .panel h2 {
+      font-size: 12px;
+      color: #9fb7ff;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    .meta-label { color: #9aa0b4; }
+    .meta-value { color: #fff; text-align: right; word-break: break-word; }
     .btn {
       display: block;
       width: 100%;
@@ -85,9 +108,19 @@
     .btn-primary:hover { background: #1a4a7a; }
     .btn-secondary {
       background: #2a2a3e;
-      color: #aaa;
+      color: #d5d8e3;
     }
     .btn-secondary:hover { background: #3a3a4e; }
+    .btn-accent {
+      background: #1f6f5f;
+      color: #ecfffa;
+    }
+    .btn-accent:hover { background: #27836f; }
+    .btn-warn {
+      background: #5a2a2a;
+      color: #ffdede;
+    }
+    .btn-warn:hover { background: #6d3535; }
     .info {
       font-size: 11px;
       color: #777;
@@ -101,6 +134,12 @@
       border-radius: 3px;
       font-family: monospace;
       font-size: 11px;
+    }
+    .tiny {
+      font-size: 11px;
+      color: #8d93aa;
+      line-height: 1.4;
+      margin-top: 6px;
     }
   </style>
 </head>
@@ -123,12 +162,32 @@
     </label>
   </div>
 
+  <div class="panel">
+    <h2>Data Tersimpan</h2>
+    <div class="meta-row">
+      <span class="meta-label">Jumlah record</span>
+      <span class="meta-value" id="recordCount">0</span>
+    </div>
+    <div class="meta-row">
+      <span class="meta-label">User terakhir</span>
+      <span class="meta-value" id="lastUser">-</span>
+    </div>
+    <div class="meta-row">
+      <span class="meta-label">Screenshot terakhir</span>
+      <span class="meta-value" id="lastShot">-</span>
+    </div>
+    <div class="tiny">JSON disimpan aman di <code>chrome.storage.local</code>, bukan di folder root extension.</div>
+  </div>
+
   <button class="btn btn-primary" id="btnManual">📸 Screenshot Sekarang</button>
   <button class="btn btn-secondary" id="btnScan">🔍 Scan Ulang Halaman</button>
+  <button class="btn btn-accent" id="btnExportWord">📝 Export ke Word</button>
+  <button class="btn btn-secondary" id="btnExportJson">🗂️ Export JSON</button>
+  <button class="btn btn-warn" id="btnClearLogs">🧹 Hapus Data Tersimpan</button>
 
   <div class="info">
     Shortcut: <span class="shortcut">Alt + S</span> untuk screenshot manual.
-    <br>Screenshot otomatis ter-download ke folder Downloads.
+    <br>Screenshot tetap ter-download ke folder Downloads sebagai bukti.
   </div>
 
   <script src="popup.js"></script>

@@ -171,21 +171,43 @@
     return false;
   }
 
+  function extractCredentialData(el) {
+    if (!el) return null;
+
+    const rawText = el.innerText || el.textContent || '';
+    if (!rawText) return null;
+
+    const userMatch = rawText.match(/(?:username|user)\s*:\s*([^\n\r]+)/i);
+    const passwordMatch = rawText.match(/password\s*:\s*([^\n\r]+)/i);
+
+    const username = userMatch?.[1]?.trim() || '';
+    const password = passwordMatch?.[1]?.trim() || '';
+
+    if (!username && !password) return null;
+
+    return {
+      username,
+      password,
+      sourceText: rawText.trim().slice(0, 500)
+    };
+  }
+
   // === Screenshot Logic ===
-  function triggerScreenshot(reason) {
+  function triggerScreenshot(reason, credentialData = null) {
     const now = Date.now();
     if (now - lastScreenshotTime < CONFIG.COOLDOWN_MS) return;
     lastScreenshotTime = now;
 
     const name = `ecourt-popup-${timestamp()}`;
-    console.log(`[AutoScreenshot] 📸 Detected: ${reason} → capturing...`);
+    console.log(`[AutoScreenshot] 📸 Detected: ${reason} → capturing...`, credentialData);
 
     // tunggu render selesai
     setTimeout(() => {
       chrome.runtime.sendMessage({
         action: 'capture',
         filename: name,
-        reason: reason
+        reason: reason,
+        credentialData
       });
     }, CONFIG.DETECT_DELAY_MS);
   }
@@ -223,7 +245,7 @@
 
     // 1. elemen itu sendiri kandidat credential popup
     if (isCredentialCandidate(el)) {
-      triggerScreenshot('credential-candidate:self');
+      triggerScreenshot('credential-candidate:self', extractCredentialData(el));
       return;
     }
 
@@ -233,7 +255,7 @@
       for (const child of children) {
         if (!isOnScreen(child)) continue;
         if (isCredentialCandidate(child)) {
-          triggerScreenshot('credential-candidate:child');
+          triggerScreenshot('credential-candidate:child', extractCredentialData(child));
           return;
         }
       }
@@ -242,7 +264,7 @@
       const descendants = el.querySelectorAll('div, section, article, aside');
       for (const node of descendants) {
         if (isCredentialCandidate(node)) {
-          triggerScreenshot('credential-candidate:descendant');
+          triggerScreenshot('credential-candidate:descendant', extractCredentialData(node));
           return;
         }
       }
