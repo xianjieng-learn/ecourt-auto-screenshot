@@ -2,81 +2,107 @@
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'capture') {
-    captureAndDownload(sender.tab, message.filename, message.reason);
-    sendResponse({ ok: true });
+    captureAndDownload(sender?.tab, message.filename, message.reason)
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => {
+        console.error('[AutoScreenshot] ❌ Unhandled capture error:', err);
+        sendResponse({ ok: false, error: String(err) });
+      });
+    return true; // keep message channel open for async response
   }
 });
 
-async function captureAndDownload(tab, filename, reason) {
+async function resolveTargetTab(tab) {
+  if (tab?.id != null && tab?.windowId != null) return tab;
+
+  const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (tabs && tabs[0] && tabs[0].id != null) return tabs[0];
+
+  throw new Error('No active tab found for capture');
+}
+
+async function downloadDataUrl(dataUrl, filename) {
+  if (!dataUrl || typeof dataUrl !== 'string') {
+    throw new Error('Invalid screenshot data URL');
+  }
+
+  return await chrome.downloads.download({
+    url: dataUrl,
+    filename: `${filename}.png`,
+    saveAs: false
+  });
+}
+
+async function flashBadge(tabId, text = 'OK') {
+  if (tabId == null) return;
+
   try {
-    // capture visible tab
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
-      format: 'png',
-      quality: 100
-    });
-
-    // download
-    const downloadUrl = dataUrl; // langsung dari data URL
-    const downloadFilename = `${filename}.png`;
-
-    const downloadId = await chrome.downloads.download({
-      url: downloadUrl,
-      filename: downloadFilename,
-      saveAs: false  // auto-download tanpa dialog
-    });
-
-    console.log(`[AutoScreenshot] ✅ Downloaded: ${downloadFilename} (id: ${downloadId}, reason: ${reason})`);
-
-    // update badge
-    chrome.action.setBadgeText({ text: '📸', tabId: tab.id });
-    chrome.action.setBadgeBackgroundColor({ color: '#4CAF50', tabId: tab.id });
+    await chrome.action.setBadgeText({ text, tabId });
+    await chrome.action.setBadgeBackgroundColor({ color: '#4CAF50', tabId });
     setTimeout(() => {
-      chrome.action.setBadgeText({ text: '', tabId: tab.id });
+      chrome.action.setBadgeText({ text: '', tabId }).catch(() => {});
     }, 2000);
-
   } catch (err) {
-    console.error('[AutoScreenshot] ❌ Capture failed:', err);
-    // fallback: inject screenshot via html2canvas
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['html2canvas.min.js']
-      });
-
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          return new Promise((resolve) => {
-            if (typeof html2canvas === 'undefined') {
-              resolve(null);
-              return;
-            }
-            html2canvas(document.body, {
-              useCORS: true,
-              allowTaint: true,
-              scale: 1,
-              logging: false
-            }).then(canvas => resolve(canvas.toDataURL('image/png')));
-          });
-        }
-      });
-
-      if (results && results[0] && results[0].result) {
-        await chrome.downloads.download({
-          url: results[0].result,
-          filename: `${filename}.png`,
-          saveAs: false
-        });
-        console.log(`[AutoScreenshot] ✅ Fallback download: ${filename}.png`);
-      }
-    } catch (fallbackErr) {
-      console.error('[AutoScreenshot] ❌ Fallback also failed:', fallbackErr);
-    }
+    console.warn('[AutoScreenshot] Badge update skipped:', err);
   }
 }
 
-// Badge awal
+async function captureAndDownload(tab, filename, reason) {
+  const targetTab = await resolveTargetTab(tab);
+
+  try {
+    const dataUrl = await chrome.tabs.captureVisibleTab(targetTab.windowId, {
+      format: 'png'
+    });
+
+    const downloadId = await downloadDataUrl(dataUrl, filename);
+    console.log(`[AutoScreenshot] ✅ Downloaded: ${filename}.png (id: ${downloadId}, reason: ${reason})`);
+    await flashBadge(targetTab.id);
+    return;
+
+  } catch (err) {
+    console.error('[AutoScreenshot] ❌ Primary capture failed:', err);
+  }
+
+  // fallback: inject html2canvas into page and render DOM manually
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: targetTab.id },
+      files: ['html2canvas.min.js']
+    });
+
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: targetTab.id },
+      func: async () => {
+        if (typeof html2canvas === 'undefined') return null;
+
+        const canvas = await html2canvas(document.body, {
+          useCORS: true,
+          allowTaint: true,
+          scale: 1,
+          logging: false
+        });
+
+        return canvas.toDataURL('image/png');
+      }
+    });
+
+    const dataUrl = results?.[0]?.result;
+    if (!dataUrl) {
+      throw new Error('html2canvas returned empty result');
+    }
+
+    const downloadId = await downloadDataUrl(dataUrl, filename);
+    console.log(`[AutoScreenshot] ✅ Fallback downloaded: ${filename}.png (id: ${downloadId}, reason: ${reason})`);
+    await flashBadge(targetTab.id, 'OK');
+
+  } catch (fallbackErr) {
+    console.error('[AutoScreenshot] ❌ Fallback also failed:', fallbackErr);
+    throw fallbackErr;
+  }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[AutoScreenshot] Extension installed');
-  chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' });
+  chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' }).catch(() => {});
 });
