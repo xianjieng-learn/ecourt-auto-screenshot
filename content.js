@@ -8,10 +8,9 @@
     COOLDOWN_MS: 3000,        // anti-spam: jangan screenshot popup yang sama berulang
     DETECT_DELAY_MS: 500,     // tunggu render sebelum screenshot
     SCROLL_DELAY_MS: 800,     // tunggu setelah scroll
-    KEYWORDS: [               // kata kunci yang biasa muncul di popup credential
-      'username', 'password', 'sandi', 'kata sandi',
-      'user name', 'login', 'masuk', 'otentikasi',
-      'authentication', 'credential', 'token'
+    KEYWORDS: [               // kata kunci credential yang lebih spesifik
+      'username', 'password', 'kata sandi', 'user name',
+      'userid', 'user id', 'id user'
     ],
     MODAL_SELECTORS: [        // selector umum popup/modal
       '.modal', '.modal-dialog', '.modal-content',
@@ -61,6 +60,38 @@
   function containsKeywords(el) {
     const text = (el.innerText || el.textContent || '').toLowerCase();
     return CONFIG.KEYWORDS.some(kw => text.includes(kw));
+  }
+
+  function normalizeText(text) {
+    return (text || '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function looksLikeCredentialText(el) {
+    const text = normalizeText(el.innerText || el.textContent || '');
+    if (!text) return false;
+
+    const hasUsername = /\b(user\s*name|username|user\s*id|userid|id\s*user)\b/.test(text);
+    const hasPassword = /\b(password|kata\s*sandi|sandi)\b/.test(text);
+
+    if (!(hasUsername && hasPassword)) return false;
+    if (text.length > 300) return false;
+
+    return true;
+  }
+
+  function isReasonablePopupSize(el) {
+    if (!el || !el.getBoundingClientRect) return false;
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth || document.documentElement.clientWidth;
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+
+    if (rect.width < 120 || rect.height < 40) return false;
+    if (rect.width > vw * 0.95 || rect.height > vh * 0.80) return false;
+
+    return true;
   }
 
   // cek apakah ada input type password di dalam element
@@ -135,49 +166,44 @@
     return false;
   }
 
+  function isCredentialCandidate(el) {
+    if (!el || !isOnScreen(el)) return false;
+
+    if (hasPasswordField(el)) return true;
+    if (!looksLikeCredentialText(el)) return false;
+    if (!isReasonablePopupSize(el)) return false;
+    if (!(isModalElement(el) || isOverlayLike(el))) return false;
+
+    return true;
+  }
+
   function checkElement(el) {
     if (!enabled || !el || !el.tagName) return;
     if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'LINK') return;
     if (!isOnScreen(el)) return;
 
-    // 1. modal standar + credential
-    if (isModalElement(el)) {
-      if (hasPasswordField(el)) {
-        triggerScreenshot('modal+password-field');
-        return;
-      }
-      if (containsKeywords(el)) {
-        triggerScreenshot('modal+credential-keywords');
-        return;
-      }
-    }
-
-    // 2. overlay apapun (popup, toast, div muncul sebentar) + ada tulisan username/password
-    if (isOverlayLike(el) && containsKeywords(el)) {
-      triggerScreenshot('overlay+credential-text');
+    // 1. elemen itu sendiri kandidat credential popup
+    if (isCredentialCandidate(el)) {
+      triggerScreenshot('credential-candidate:self');
       return;
     }
 
-    // 3. check children dari elemen baru
+    // 2. check children dari elemen baru
     if (el.querySelectorAll) {
       const children = el.querySelectorAll(CONFIG.MODAL_SELECTORS.join(','));
       for (const child of children) {
         if (!isOnScreen(child)) continue;
-        if (hasPasswordField(child)) {
-          triggerScreenshot('child-modal+password-field');
-          return;
-        }
-        if (containsKeywords(child)) {
-          triggerScreenshot('child-modal+credential-keywords');
+        if (isCredentialCandidate(child)) {
+          triggerScreenshot('credential-candidate:child');
           return;
         }
       }
 
-      // 4. fallback: cari elemen overlay kecil yang ada tulisan username/password
-      if (containsKeywords(el) && el.offsetWidth > 100 && el.offsetHeight > 50) {
-        const style = window.getComputedStyle(el);
-        if (style.position === 'fixed' || style.position === 'absolute') {
-          triggerScreenshot('floating-element+credential-text');
+      // 3. fallback: cari descendant kecil yang bukan modal selector standar
+      const descendants = el.querySelectorAll('div, section, article, aside');
+      for (const node of descendants) {
+        if (isCredentialCandidate(node)) {
+          triggerScreenshot('credential-candidate:descendant');
           return;
         }
       }
@@ -225,6 +251,14 @@
         document.querySelectorAll(sel).forEach(el => checkElement(el));
       } catch (e) { /* skip */ }
     }
+
+    // fallback: scan elemen positioned yang mungkin popup custom
+    document.querySelectorAll('div, section, article, aside').forEach(el => {
+      const style = window.getComputedStyle(el);
+      if (style.position === 'fixed' || style.position === 'absolute') {
+        checkElement(el);
+      }
+    });
   }
 
   // === Manual Trigger ===
