@@ -74,26 +74,25 @@
     const text = normalizeText(rawText);
     if (!text) return false;
 
-    // khusus popup eCourt model "Pesan" + "Data user"
+    // === pola 1: popup eCourt lama "Pesan" + "Data user" ===
     const hasPesanTitle = /(^|\b)pesan(\b|$)/i.test(rawText);
     const hasDataUser = /data\s*user/i.test(rawText);
     const hasUsernameLine = /username\s*:/i.test(rawText);
     const hasUserLine = /user\s*:/i.test(rawText);
-    const hasPasswordLine = /password\s*:/i.test(rawText);
+    const hasPasswordLine = /passw(?:o?r?d)\s*:/i.test(rawText); // toleransi typo "passwrod"
 
-    // wajib struktur khas popup yang Xian kirim
-    if (!(hasDataUser && (hasUsernameLine || hasUserLine) && hasPasswordLine)) return false;
+    if (hasDataUser && (hasUsernameLine || hasUserLine) && hasPasswordLine) return true;
+    if (hasPesanTitle && (hasUsernameLine || hasUserLine) && hasPasswordLine) return true;
 
-    // "Pesan" biasanya ada di header modal. kalau gak ada, tetap lolos asal format data user sangat spesifik.
-    const specificCredentialShape = hasDataUser && (hasUsernameLine || hasUserLine) && hasPasswordLine;
-    const ecourtMessageShape = hasPesanTitle && specificCredentialShape;
+    // === pola 2: popup "Pembuatan dan Pengiriman Akun" / "Generate Akun" ===
+    const hasAkunGenerate = /(?:generate\s*akun|pembuatan.*akun|pengiriman.*akun)/i.test(rawText);
+    if (hasAkunGenerate && (hasUserLine || hasUsernameLine) && hasPasswordLine) return true;
 
-    if (!(specificCredentialShape || ecourtMessageShape)) return false;
+    // === pola 3: popup kecil yang punya user + password di text ===
+    // cocok untuk popup credential apapun bentuknya
+    if (text.length < 400 && (hasUserLine || hasUsernameLine) && hasPasswordLine) return true;
 
-    // batas panjang supaya container besar/full page gak ikut match
-    if (text.length > 500) return false;
-
-    return true;
+    return false;
   }
 
   function isReasonablePopupSize(el) {
@@ -178,7 +177,7 @@
     if (!rawText) return null;
 
     const userMatch = rawText.match(/(?:username|user)\s*:\s*([^\n\r]+)/i);
-    const passwordMatch = rawText.match(/password\s*:\s*([^\n\r]+)/i);
+    const passwordMatch = rawText.match(/passw(?:o?r?d)\s*:\s*([^\n\r]+)/i);
 
     const username = userMatch?.[1]?.trim() || '';
     const password = passwordMatch?.[1]?.trim() || '';
