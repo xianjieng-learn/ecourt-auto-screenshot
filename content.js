@@ -226,16 +226,34 @@
     return false;
   }
 
+  function hasProperCredentialFields(el) {
+    // password field harus ada + ada input terkait username/email
+    const passInputs = el.querySelectorAll('input[type="password"]');
+    if (passInputs.length === 0) return false;
+
+    const userInputs = el.querySelectorAll(
+      'input[type="text"], input[type="email"], input:not([type]), ' +
+      'input[name*="user" i], input[id*="user" i], ' +
+      'input[name*="email" i], input[id*="email" i], ' +
+      'input[placeholder*="user" i], input[placeholder*="email" i]'
+    );
+    return userInputs.length > 0;
+  }
+
   function isCredentialCandidate(el) {
     if (!el || !isOnScreen(el)) return false;
 
-    if (isLoginFormLike(el)) return false;
-    if (hasPasswordField(el)) return true;
-    if (!looksLikeCredentialText(el)) return false;
-    if (!isReasonablePopupSize(el)) return false;
+    // wajib overlay/modal DULU — halaman biasa gak boleh lolos
     if (!(isModalElement(el) || isOverlayLike(el))) return false;
 
-    return true;
+    // cek size popup masuk akal
+    if (!isReasonablePopupSize(el)) return false;
+
+    // barulah cek credential: text spesifik eCourt ATAU ada input fields
+    if (looksLikeCredentialText(el)) return true;
+    if (hasProperCredentialFields(el)) return true;
+
+    return false;
   }
 
   function checkElement(el) {
@@ -260,9 +278,9 @@
         }
       }
 
-      // 3. fallback: cari descendant kecil yang bukan modal selector standar
-      const descendants = el.querySelectorAll('div, section, article, aside');
-      for (const node of descendants) {
+      // 3. fallback: cari descendant yang positioned tinggi (overlay/modal)
+      const overlays = el.querySelectorAll('[style*="position: fixed"], [style*="position: absolute"]');
+      for (const node of overlays) {
         if (isCredentialCandidate(node)) {
           triggerScreenshot('credential-candidate:descendant', extractCredentialData(node));
           return;
@@ -312,13 +330,9 @@
         document.querySelectorAll(sel).forEach(el => checkElement(el));
       } catch (e) { /* skip */ }
     }
-
-    // fallback: scan elemen positioned yang mungkin popup custom
-    document.querySelectorAll('div, section, article, aside').forEach(el => {
-      const style = window.getComputedStyle(el);
-      if (style.position === 'fixed' || style.position === 'absolute') {
-        checkElement(el);
-      }
+    // fallback: scan elemen positioned tinggi saja (bukan semua div)
+    document.querySelectorAll('[style*="position: fixed"], [style*="position: absolute"]').forEach(el => {
+      checkElement(el);
     });
   }
 
